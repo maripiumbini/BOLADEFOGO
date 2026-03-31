@@ -7,7 +7,6 @@ export default async function handler(req, res) {
         const { code } = req.body;
 
         try {
-            // 1. TROCA O CÓDIGO PELO TOKEN
             const tokenResponse = await fetch('https://app.asana.com/-/oauth_token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -22,26 +21,26 @@ export default async function handler(req, res) {
 
             const tokenData = await tokenResponse.json();
             const accessToken = tokenData.access_token;
-            if (!accessToken) throw new Error("Falha ao obter Token: " + JSON.stringify(tokenData));
+            if (!accessToken) throw new Error("Falha no Token");
 
-            // 2. DESCOBRE QUEM É A MARI E EM QUAIS EMPRESAS (WORKSPACES) ELA ESTÁ
             const userResp = await fetch('https://app.asana.com/api/1.0/users/me', {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             const userData = await userResp.json();
-            const userGid = userData.data.gid;
-            const workspaces = userData.data.workspaces; // Lista de todas as empresas que você está
+            const workspaces = userData.data.workspaces;
 
-            // 3. DEFINE AMANHÃ
-            const amanha = new Date();
-            amanha.setDate(amanha.getDate() + 1);
-            const amanhaFormatado = amanha.toISOString().split('T')[0];
+            // 1. PEGA A DATA DE HOJE (Formato YYYY-MM-DD)
+            const hoje = new Date().toISOString().split('T')[0];
+            
+            // 2. DEFINE AMANHÃ
+            const amanhaData = new Date();
+            amanhaData.setDate(amanhaData.getDate() + 1);
+            const amanhaFormatado = amanhaData.toISOString().split('T')[0];
 
             let totalReagendadas = 0;
 
-            // 4. VARRE TODOS OS SEUS WORKSPACES ATRÁS DE TAREFAS
             for (const workspace of workspaces) {
-                // Busca tarefas incompletas atribuídas a você neste workspace específico
+                // Buscamos as tarefas (pedindo o campo 'due_on' para comparar)
                 const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?workspace=${workspace.gid}&assignee=me&completed_since=now&opt_fields=due_on,completed`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
@@ -49,9 +48,11 @@ export default async function handler(req, res) {
                 const tasksData = await tasksResp.json();
                 const tasks = tasksData.data || [];
 
-                // 5. ATUALIZA AS TAREFAS DESSE WORKSPACE
                 for (const task of tasks) {
-                    if (!task.completed) {
+                    // 🔥 O FILTRO DE MESTRE:
+                    // Só entra no trator se a tarefa não estiver concluída 
+                    // E se a data de conclusão (due_on) for HOJE ou anterior (atrasada)
+                    if (!task.completed && task.due_on && task.due_on <= hoje) {
                         await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
                             method: 'PUT',
                             headers: { 
@@ -68,9 +69,8 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, reagendadas: totalReagendadas });
 
         } catch (error) {
-            return res.status(500).json({ error: "Erro na BOLA DE FOGO", message: error.message });
+            return res.status(500).json({ error: "Erro", message: error.message });
         }
     }
-
     res.status(405).send('Método não permitido');
 }
