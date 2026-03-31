@@ -7,7 +7,7 @@ export default async function handler(req, res) {
         const { code } = req.body;
 
         try {
-            // 1. PEGA O TOKEN
+            // 1. TROCA O CÓDIGO PELO TOKEN
             const tokenResponse = await fetch('https://app.asana.com/-/oauth_token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -21,10 +21,13 @@ export default async function handler(req, res) {
             });
 
             const tokenData = await tokenResponse.json();
-            const accessToken = tokenData.access_token;
-            if (!accessToken) throw new Error("Erro no Token");
+            if (!tokenData.access_token) {
+                return res.status(401).json({ error: "Erro no Token", details: tokenData });
+            }
 
-            // 2. DESCOBRE SEU ID E O WORKSPACE
+            const accessToken = tokenData.access_token;
+
+            // 2. PEGA SEU ID E O WORKSPACE
             const userResp = await fetch('https://app.asana.com/api/1.0/users/me', {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
@@ -32,15 +35,19 @@ export default async function handler(req, res) {
             const userGid = userData.data.gid;
             const workspaceGid = userData.data.workspaces[0].gid;
 
-            // 3. BUSCA A SUA "USER TASK LIST" (Onde ficam as suas 'Minhas Tarefas')
+            // 3. BUSCA A USER TASK LIST (Minhas Tarefas)
             const utlResp = await fetch(`https://app.asana.com/api/1.0/user_task_lists?user=${userGid}&workspace=${workspaceGid}`, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             const utlData = await utlResp.json();
+            
+            if (!utlData.data || utlData.data.length === 0) {
+                throw new Error("Não encontrei sua lista de 'Minhas Tarefas'.");
+            }
             const utlGid = utlData.data[0].gid;
 
-            // 4. PEGA TODAS AS TAREFAS DESSA LISTA (Incompletas)
-            const tasksResp = await fetch(`https://app.asana.com/api/1.0/user_task_lists/${utlGid}/tasks?completed_since=now&opt_fields=due_on,completed,name`, {
+            // 4. PEGA AS TAREFAS INCOMPLETAS (Aqui é o trator)
+            const tasksResp = await fetch(`https://app.asana.com/api/1.0/user_task_lists/${utlGid}/tasks?completed_since=now&opt_fields=due_on,completed`, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             const tasksData = await tasksResp.json();
@@ -51,33 +58,31 @@ export default async function handler(req, res) {
             amanha.setDate(amanha.getDate() + 1);
             const amanhaFormatado = amanha.toISOString().split('T')[0];
 
+            // 6. LANÇA A BOLA DE FOGO
             let contador = 0;
-            const promessas = [];
-
-            // 6. REAGENDA
-            for (const task of tasks) {
+            const promessas = tasks.map(task => {
                 if (!task.completed) {
-                    promessas.push(
-                        fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Authorization': `Bearer ${accessToken}`,
-                                'Content-Type': 'application/json' 
-                            },
-                            body: JSON.stringify({ data: { due_on: amanhaFormatado } })
-                        })
-                    );
                     contador++;
+                    return fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
+                        method: 'PUT',
+                        headers: { 
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json' 
+                        },
+                        body: JSON.stringify({ data: { due_on: amanhaFormatado } })
+                    });
                 }
-            }
+            });
 
             await Promise.all(promessas);
 
             return res.status(200).json({ success: true, reagendadas: contador });
 
         } catch (error) {
-            return res.status(500).json({ error: error.message });
+            console.error("ERRO DETECTADO:", error.message);
+            return res.status(500).json({ error: "Erro Interno", message: error.message });
         }
     }
+
     res.status(405).send('Método não permitido');
 }
