@@ -1,54 +1,33 @@
-// api/burn.js
 export default async function handler(req, res) {
-    const { code, client_id, client_secret, redirect_uri } = req.body;
+    const { code } = req.body;
 
-    // 1. Trocar o CODE pelo ACCESS TOKEN (A chave mestra)
-    const tokenResponse = await fetch('https://app.asana.com/-/oauth_token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: client_id,
-            client_secret: client_secret,
-            redirect_uri: redirect_uri,
-            code: code
-        })
-    });
+    // Aqui a BOLA DE FOGO se conecta com o Asana
+    // (A gente vai configurar os segredos na Vercel depois)
+    const CLIENT_ID = process.env.ASANA_CLIENT_ID;
+    const CLIENT_SECRET = process.env.ASANA_CLIENT_SECRET;
+    const REDIRECT_URI = process.env.REDIRECT_URI;
 
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-
-    // 2. O TRATOR: Buscar todos os projetos
-    const projectsResp = await fetch('https://app.asana.com/api/1.0/projects', {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    const { data: projects } = await projectsResp.json();
-
-    // 3. O LANÇAMENTO: Varre cada projeto e limpa as tarefas
-    for (const project of projects) {
-        const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?project=${project.gid}&completed_since=now&opt_fields=due_on,completed`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
+    try {
+        // 1. Pede a chave pro Asana usando o código que veio do site
+        const resp = await fetch('https://app.asana.com/-/oauth_token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: CLIENT_ID,
+                client_secret: CLIENT_SECRET,
+                redirect_uri: REDIRECT_URI,
+                code: code
+            })
         });
-        const { data: tasks } = await tasksResp.json();
 
-        for (const task of tasks) {
-            // Se a tarefa não está pronta, joga pra amanhã
-            if (!task.completed) {
-                const amanha = new Date();
-                amanha.setDate(amanha.getDate() + 1);
-                const dataFormatada = amanha.toISOString().split('T')[0];
+        const data = await resp.json();
+        
+        // Se deu tudo certo, a BOLA DE FOGO explode aqui (Lógica de reagendar)
+        // Por enquanto, vamos só avisar que recebemos!
+        res.status(200).json({ status: "Fogo carregado!", token: data.access_token ? "OK" : "Erro" });
 
-                await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify({ data: { due_on: dataFormatada } })
-                });
-            }
-        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
-
-    res.status(200).json({ success: true, message: "BOLA DE FOGO LANÇADA!" });
 }
