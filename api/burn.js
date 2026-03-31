@@ -50,8 +50,6 @@ export default async function handler(req, res) {
 
                 for (const task of tasks) {
                     // 🔥 O FILTRO DE MESTRE:
-                    // Só entra no trator se a tarefa não estiver concluída 
-                    // E se a data de conclusão (due_on) for HOJE ou anterior (atrasada)
                     if (!task.completed && task.due_on && task.due_on <= hoje) {
                         await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
                             method: 'PUT',
@@ -66,7 +64,12 @@ export default async function handler(req, res) {
                 }
             }
 
-            return res.status(200).json({ success: true, reagendadas: totalReagendadas });
+            // AQUI ESTÁ A MUDANÇA: Retornamos o token para o localStorage do navegador
+            return res.status(200).json({ 
+                success: true, 
+                reagendadas: totalReagendadas,
+                token: accessToken 
+            });
 
         } catch (error) {
             return res.status(500).json({ error: "Erro", message: error.message });
