@@ -118,6 +118,22 @@
                 }
             }
         }
-    </script>
+    </const CLIENT_ID = '1213884306145874'; // <--- Cola seu Client ID aqui
+
+const REDIRECT_URI = 'https://maripiumbini.github.io/boladefogo/'; // <--- O link do seu site (ex: https://maripiumbini.github.io/boladefogo/)
+
+
+
+function loginAsana() {
+
+    // Esse link leva o usuário para a página oficial do Asana para ele autorizar você
+
+    const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
+
+    
+
+    window.location.href = authUrl;
+
+}>
 </body>
 </html>
