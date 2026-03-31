@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function (req, res) {
     // Puxando os segredos do cofre da Vercel
     const CLIENT_ID = process.env.ASANA_CLIENT_ID;
     const CLIENT_SECRET = process.env.ASANA_CLIENT_SECRET;
