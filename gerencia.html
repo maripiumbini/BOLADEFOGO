@@ -57,7 +57,6 @@
             transform: translateY(-3px);
         }
 
-        /* Quando o checkbox está marcado, o card brilha */
         .user-card.selected {
             border-color: #00f2fe;
             box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
@@ -155,7 +154,6 @@
                 }
 
                 equipe.forEach(user => {
-                    // Lógica da Foto: Se não tiver, usa o UI-Avatars com as iniciais
                     const fotoUrl = (user.photo && user.photo.image_60x60) 
                         ? user.photo.image_60x60 
                         : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&color=fff&size=128`;
@@ -211,16 +209,23 @@
                 });
 
                 const resultado = await resp.json();
-                alert(`Missão cumprida! ${resultado.reagendadas || 0} tarefas reagendadas.`);
-                location.reload();
+
+                if (resp.ok) {
+                    alert(`Missão cumprida! ${resultado.reagendadas || 0} tarefas reagendadas.`);
+                    location.reload();
+                } else {
+                    // Aqui ele mostra o erro real vindo da API
+                    alert("Erro da API: " + (resultado.message || resultado.error || "Erro desconhecido"));
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
             } catch (error) {
-                alert("Erro ao processar reagendamento.");
+                alert("Erro de conexão: " + error.message);
                 btn.innerText = originalText;
                 btn.disabled = false;
             }
         }
 
-        // Inicia o radar
         window.onload = carregarEquipe;
     </script>
 </body>
