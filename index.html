@@ -46,19 +46,17 @@
             line-height: 1.5;
         }
 
-        /* Container do Botão Central */
         .button-container {
             position: relative;
             z-index: 5;
         }
 
-        /* Estilo Base do Botão (Login/Frio) */
         .main-button {
             padding: 22px 60px;
             font-size: 1.6rem;
             font-weight: 900;
-            color: #444; /* Texto escuro no modo frio */
-            background-color: #1a1a1a; /* Fundo escuro no modo frio */
+            color: #444;
+            background-color: #1a1a1a;
             border: 2px solid #333;
             border-radius: 60px;
             cursor: pointer;
@@ -74,7 +72,6 @@
             transform: translateY(-2px);
         }
 
-        /* Estilo quando o botão está QUENTE (Pronto para Lançar) */
         .main-button.hot {
             color: white;
             background: linear-gradient(45deg, #ff3d00, #ff1744);
@@ -83,18 +80,12 @@
             animation: pulseFire 2s infinite;
         }
 
-        .main-button.hot:hover {
-            box-shadow: 0 0 50px rgba(255, 61, 0, 1);
-            transform: scale(1.03);
-        }
-
         @keyframes pulseFire {
             0% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
             50% { box-shadow: 0 0 60px rgba(255, 61, 0, 0.9); }
             100% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
         }
 
-        /* Elemento Visual da Bola de Fogo */
         .fireball-effect {
             position: absolute;
             width: 80px;
@@ -122,8 +113,24 @@
 
     <script>
         // CONFIGURAÇÕES DO ASANA (SaaS)
-        const CLIENT_ID = 'SEU_CLIENT_ID_AQUI'; // <--- Cola seu Client ID aqui
+        const CLIENT_ID = ''; // <--- COLA SEU CLIENT ID AQUI!
         const REDIRECT_URI = window.location.origin + window.location.pathname; 
+
+        // 1. Função que avisa a Vercel para carregar o token
+        async function prepararLancamento(authCode) {
+            console.log("Enviando código para a base de lançamento...");
+            try {
+                const response = await fetch('/api/burn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: authCode })
+                });
+                const data = await response.json();
+                console.log("Status do servidor:", data);
+            } catch (error) {
+                console.error("Falha na comunicação com o servidor:", error);
+            }
+        }
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -132,16 +139,19 @@
 
             if (authCode) {
                 // ESTADO: LOGADO. Botão fica QUENTE.
-                console.log("Bola de Fogo aquecida! Código: " + authCode);
-                btn.innerText = "LANÇAR BOLA DE FOGO"; // Texto Direto
-                btn.classList.add('hot'); // Visual Pulsante
+                btn.innerText = "LANÇAR BOLA DE FOGO"; 
+                btn.classList.add('hot'); 
+                
+                // Avisa o servidor Vercel
+                prepararLancamento(authCode);
+
+                // Limpa a URL para ficar bonitinha
                 window.history.replaceState({}, document.title, REDIRECT_URI);
             }
         };
 
         function handleActionButton() {
             const btn = document.getElementById('action-btn');
-            
             if (btn.classList.contains('hot')) {
                 launchFireballEffect();
             } else {
@@ -177,7 +187,7 @@
                     btn.classList.remove('hot');
                     btn.style.backgroundColor = '#111';
                     
-                    alert('Bola de Fogo lançada com sucesso! Suas tarefas pendentes foram reagendadas para amanhã.');
+                    alert('Bola de Fogo lançada! Suas tarefas foram empurradas para amanhã.');
                     
                     setTimeout(()=> location.reload(), 3000);
                 } else {
