@@ -1,0 +1,63 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "resource": "playlistItem",
+        "playlistId": "SUA_PLAYLIST_UPLOADS_ID",
+        "limit": 1
+      },
+      "id": "76e5d4a1-b2c3-4d5e-bf61-2a3b4c5d6e7f",
+      "name": "YouTube Trigger",
+      "type": "n8n-nodes-base.youTubeTrigger",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "ID_DA_SUA_CREDENTIAL_YOUTUBE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepgram.com/v1/listen?model=nova-2&language=pt-BR&smart_format=true&diarize=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"url\": \"https://www.youtube.com/watch?v={{ $json.snippet.resourceId.videoId }}\"\n}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-4g7h-8i9j-k0l1m2n3o4p5",
+      "name": "Deepgram (Transcrição)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [700, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ID_DA_SUA_CREDENTIAL_DEEPGRAM"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "YouTube Trigger": {
+      "main": [
+        [
+          {
+            "node": "Deepgram (Transcrição)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
