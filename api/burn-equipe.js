@@ -4,14 +4,14 @@ export default async function handler(req, res) {
     const { usuarios, token } = req.body;
 
     try {
-        // 1. DESCOBRE O ID DO WORKSPACE REAL (O pulo do gato)
         const meResp = await fetch('https://app.asana.com/api/1.0/users/me', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const meData = await meResp.json();
+        
+        if (!meData.data) throw new Error("Usuário não autenticado no Asana.");
         const workspaceGid = meData.data.workspaces[0].gid;
 
-        // 2. DATAS
         const hoje = new Date().toISOString().split('T')[0];
         const amanhaData = new Date();
         amanhaData.setDate(amanhaData.getDate() + 1);
@@ -19,9 +19,7 @@ export default async function handler(req, res) {
 
         let totalReagendadas = 0;
 
-        // 3. LOOP NOS USUÁRIOS
         for (const userGid of usuarios) {
-            // Buscamos as tarefas desse usuário no workspace específico
             const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=${userGid}&workspace=${workspaceGid}&completed_since=now&opt_fields=due_on,completed`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -29,7 +27,6 @@ export default async function handler(req, res) {
             const tasksData = await tasksResp.json();
             const tasks = tasksData.data || [];
 
-            // 4. REAGENDA SÓ O QUE É DE HOJE OU ATRASADO
             for (const task of tasks) {
                 if (!task.completed && task.due_on && task.due_on <= hoje) {
                     await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
@@ -48,7 +45,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, reagendadas: totalReagendadas });
 
     } catch (error) {
-        console.error("ERRO NA GERÊNCIA:", error.message);
         return res.status(500).json({ error: "Erro", message: error.message });
     }
 }
