@@ -112,25 +112,9 @@
     </div>
 
     <script>
-        // CONFIGURAÇÕES DO ASANA (SaaS)
-        const CLIENT_ID = ''; // <--- COLA SEU CLIENT ID AQUI!
-        const REDIRECT_URI = window.location.origin + window.location.pathname; 
-
-        // 1. Função que avisa a Vercel para carregar o token
-        async function prepararLancamento(authCode) {
-            console.log("Enviando código para a base de lançamento...");
-            try {
-                const response = await fetch('/api/burn', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: authCode })
-                });
-                const data = await response.json();
-                console.log("Status do servidor:", data);
-            } catch (error) {
-                console.error("Falha na comunicação com o servidor:", error);
-            }
-        }
+        // CONFIGURAÇÕES DIRETAS (Fica mais fácil e para de dar erro)
+        const CLIENT_ID = '1213884306145874'; 
+        const REDIRECT_URI = 'https://boladefogo-zeta.vercel.app/'; 
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -138,17 +122,36 @@
             const btn = document.getElementById('action-btn');
 
             if (authCode) {
-                // ESTADO: LOGADO. Botão fica QUENTE.
+                // Se tem código na URL, o botão fica VERMELHO e PRONTO
                 btn.innerText = "LANÇAR BOLA DE FOGO"; 
                 btn.classList.add('hot'); 
                 
-                // Avisa o servidor Vercel
+                // Manda o código pro servidor processar o trator de tarefas
                 prepararLancamento(authCode);
 
-                // Limpa a URL para ficar bonitinha
+                // Limpa a URL para o código não ficar exposto
                 window.history.replaceState({}, document.title, REDIRECT_URI);
             }
         };
+
+        // Função de Login
+        function loginAsana() {
+            const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
+            window.location.href = authUrl;
+        }
+
+        // Função que avisa a API
+        async function prepararLancamento(authCode) {
+            try {
+                await fetch('/api/burn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: authCode })
+                });
+            } catch (error) {
+                console.error("Erro na API:", error);
+            }
+        }
 
         function handleActionButton() {
             const btn = document.getElementById('action-btn');
@@ -157,11 +160,6 @@
             } else {
                 loginAsana();
             }
-        }
-
-        function loginAsana() {
-            const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
-            window.location.href = authUrl;
         }
 
         function launchFireballEffect() {
@@ -188,7 +186,6 @@
                     btn.style.backgroundColor = '#111';
                     
                     alert('Bola de Fogo lançada! Suas tarefas foram empurradas para amanhã.');
-                    
                     setTimeout(()=> location.reload(), 3000);
                 } else {
                     scale += 0.5;
