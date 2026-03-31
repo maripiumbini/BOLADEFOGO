@@ -23,46 +23,50 @@ module.exports = async function (req, res) {
             const tokenData = await tokenResponse.json();
             const accessToken = tokenData.access_token;
 
-            if (!accessToken) throw new Error("Falha no Token");
+            if (!accessToken) throw new Error("Erro no Token: " + JSON.stringify(tokenData));
 
-            // 2. DEFINE AS DATAS
-            const hoje = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
-            const amanhaData = new Date();
-            amanhaData.setDate(amanhaData.getDate() + 1);
-            const amanhaFormatado = amanhaData.toISOString().split('T')[0];
+            // 2. DEFINE AMANHÃ
+            const amanha = new Date();
+            amanha.setDate(amanha.getDate() + 1);
+            const amanhaFormatado = amanha.toISOString().split('T')[0];
 
-            // 3. BUSCA TAREFAS QUE VENCEM HOJE (OU ATRASADAS)
-            // Filtramos por: Atribuídas a mim + Incompletas
-            const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=me&completed_since=now&opt_fields=due_on,completed`, {
+            // 3. BUSCA SEUS PROJETOS
+            const projectsResp = await fetch('https://app.asana.com/api/1.0/projects', {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
-            
-            const tasksData = await tasksResp.json();
-            const tasks = tasksData.data || [];
+            const projectsData = await projectsResp.json();
+            const projects = projectsData.data || [];
 
             let contador = 0;
             const promessas = [];
 
-            for (const task of tasks) {
-                // SÓ ENTRA NO TRATOR SE:
-                // - A tarefa não estiver concluída
-                // - A data de conclusão (due_on) for HOJE ou estiver em branco/atrasada
-                if (!task.completed && (task.due_on === hoje || !task.due_on || task.due_on < hoje)) {
-                    promessas.push(
-                        fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Authorization': `Bearer ${accessToken}`,
-                                'Content-Type': 'application/json' 
-                            },
-                            body: JSON.stringify({ data: { due_on: amanhaFormatado } })
-                        })
-                    );
-                    contador++;
+            // 4. VARRE CADA PROJETO ATRÁS DE TAREFAS INCOMPLETAS
+            for (const project of projects) {
+                const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?project=${project.gid}&opt_fields=due_on,completed,assignee`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const tasksData = await tasksResp.json();
+                const tasks = tasksData.data || [];
+
+                for (const task of tasks) {
+                    // SÓ REAGENDA SE: Não concluída E (Vencendo hoje ou sem data)
+                    // (Removi o filtro de 'assignee=me' para garantir que ele ache TUDO no projeto)
+                    if (!task.completed) {
+                        promessas.push(
+                            fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
+                                method: 'PUT',
+                                headers: { 
+                                    'Authorization': `Bearer ${accessToken}`,
+                                    'Content-Type': 'application/json' 
+                                },
+                                body: JSON.stringify({ data: { due_on: amanhaFormatado } })
+                            })
+                        );
+                        contador++;
+                    }
                 }
             }
 
-            // Executa todas as mudanças de data
             await Promise.all(promessas);
 
             return res.status(200).json({ success: true, reagendadas: contador });
