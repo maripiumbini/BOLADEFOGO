@@ -21,66 +21,54 @@ export default async function handler(req, res) {
             });
 
             const tokenData = await tokenResponse.json();
-            if (!tokenData.access_token) {
-                return res.status(401).json({ error: "Erro no Token", details: tokenData });
-            }
-
             const accessToken = tokenData.access_token;
+            if (!accessToken) throw new Error("Falha ao obter Token: " + JSON.stringify(tokenData));
 
-            // 2. PEGA SEU ID E O WORKSPACE
+            // 2. DESCOBRE QUEM É A MARI E EM QUAIS EMPRESAS (WORKSPACES) ELA ESTÁ
             const userResp = await fetch('https://app.asana.com/api/1.0/users/me', {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             const userData = await userResp.json();
             const userGid = userData.data.gid;
-            const workspaceGid = userData.data.workspaces[0].gid;
+            const workspaces = userData.data.workspaces; // Lista de todas as empresas que você está
 
-            // 3. BUSCA A USER TASK LIST (Minhas Tarefas)
-            const utlResp = await fetch(`https://app.asana.com/api/1.0/user_task_lists?user=${userGid}&workspace=${workspaceGid}`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const utlData = await utlResp.json();
-            
-            if (!utlData.data || utlData.data.length === 0) {
-                throw new Error("Não encontrei sua lista de 'Minhas Tarefas'.");
-            }
-            const utlGid = utlData.data[0].gid;
-
-            // 4. PEGA AS TAREFAS INCOMPLETAS (Aqui é o trator)
-            const tasksResp = await fetch(`https://app.asana.com/api/1.0/user_task_lists/${utlGid}/tasks?completed_since=now&opt_fields=due_on,completed`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const tasksData = await tasksResp.json();
-            const tasks = tasksData.data || [];
-
-            // 5. DEFINE AMANHÃ
+            // 3. DEFINE AMANHÃ
             const amanha = new Date();
             amanha.setDate(amanha.getDate() + 1);
             const amanhaFormatado = amanha.toISOString().split('T')[0];
 
-            // 6. LANÇA A BOLA DE FOGO
-            let contador = 0;
-            const promessas = tasks.map(task => {
-                if (!task.completed) {
-                    contador++;
-                    return fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
-                        method: 'PUT',
-                        headers: { 
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json' 
-                        },
-                        body: JSON.stringify({ data: { due_on: amanhaFormatado } })
-                    });
+            let totalReagendadas = 0;
+
+            // 4. VARRE TODOS OS SEUS WORKSPACES ATRÁS DE TAREFAS
+            for (const workspace of workspaces) {
+                // Busca tarefas incompletas atribuídas a você neste workspace específico
+                const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?workspace=${workspace.gid}&assignee=me&completed_since=now&opt_fields=due_on,completed`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                
+                const tasksData = await tasksResp.json();
+                const tasks = tasksData.data || [];
+
+                // 5. ATUALIZA AS TAREFAS DESSE WORKSPACE
+                for (const task of tasks) {
+                    if (!task.completed) {
+                        await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
+                            method: 'PUT',
+                            headers: { 
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Content-Type': 'application/json' 
+                            },
+                            body: JSON.stringify({ data: { due_on: amanhaFormatado } })
+                        });
+                        totalReagendadas++;
+                    }
                 }
-            });
+            }
 
-            await Promise.all(promessas);
-
-            return res.status(200).json({ success: true, reagendadas: contador });
+            return res.status(200).json({ success: true, reagendadas: totalReagendadas });
 
         } catch (error) {
-            console.error("ERRO DETECTADO:", error.message);
-            return res.status(500).json({ error: "Erro Interno", message: error.message });
+            return res.status(500).json({ error: "Erro na BOLA DE FOGO", message: error.message });
         }
     }
 
