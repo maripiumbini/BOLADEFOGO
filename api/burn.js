@@ -7,7 +7,7 @@ export default async function handler(req, res) {
         const { code } = req.body;
 
         try {
-            // 1. TROCA O CÓDIGO PELO TOKEN
+            // 1. PEGA O TOKEN
             const tokenResponse = await fetch('https://app.asana.com/-/oauth_token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -22,42 +22,47 @@ export default async function handler(req, res) {
 
             const tokenData = await tokenResponse.json();
             const accessToken = tokenData.access_token;
+            if (!accessToken) return res.status(401).json({ error: "Erro no Token" });
 
-            if (!accessToken) {
-                return res.status(401).json({ error: "Falha no Token", details: tokenData });
-            }
+            // 2. DESCOBRE O WORKSPACE E O SEU ID DE USUÁRIO
+            const userResp = await fetch('https://app.asana.com/api/1.0/users/me', {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            const userData = await userResp.json();
+            const workspaceGid = userData.data.workspaces[0].gid;
+            const myGid = userData.data.gid;
 
-            // 2. DEFINE AMANHÃ
+            // 3. DEFINE AMANHÃ
             const amanha = new Date();
             amanha.setDate(amanha.getDate() + 1);
             const amanhaFormatado = amanha.toISOString().split('T')[0];
 
-            // 3. BUSCA TAREFAS (Assignee me)
-            const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${tokenData.data?.workspaces?.[0]?.gid || 'me'}&opt_fields=due_on,completed`, {
+            // 4. A BUSCA SNIPER: "Tudo o que é meu e não está concluído no workspace inteiro"
+            const searchUrl = `https://app.asana.com/api/1.0/workspaces/${workspaceGid}/tasks/search?assignee.any=${myGid}&completed=false&opt_fields=due_on,name`;
+            
+            const searchResp = await fetch(searchUrl, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             
-            const tasksData = await tasksResp.json();
-            const tasks = tasksData.data || [];
+            const searchData = await searchResp.json();
+            const tasks = searchData.data || [];
 
             let contador = 0;
             const promessas = [];
 
-            // 4. ATUALIZA CADA TAREFA INCOMPLETA
+            // 5. REAGENDA TUDO
             for (const task of tasks) {
-                if (!task.completed) {
-                    promessas.push(
-                        fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
-                            method: 'PUT',
-                            headers: { 
-                                'Authorization': `Bearer ${accessToken}`,
-                                'Content-Type': 'application/json' 
-                            },
-                            body: JSON.stringify({ data: { due_on: amanhaFormatado } })
-                        })
-                    );
-                    contador++;
-                }
+                promessas.push(
+                    fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
+                        method: 'PUT',
+                        headers: { 
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json' 
+                        },
+                        body: JSON.stringify({ data: { due_on: amanhaFormatado } })
+                    })
+                );
+                contador++;
             }
 
             await Promise.all(promessas);
@@ -68,6 +73,5 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: error.message });
         }
     }
-
     res.status(405).send('Método não permitido');
 }
