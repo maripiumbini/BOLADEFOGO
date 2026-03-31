@@ -98,18 +98,17 @@
             opacity: 0.8;
         }
 
-        /* Botão discreto para gerência */
         .admin-link {
             margin-top: 40px;
-            color: #333;
+            color: #222;
             text-decoration: none;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 2px;
-            transition: 0.3s;
             cursor: pointer;
+            transition: 0.3s;
         }
-        .admin-link:hover { color: #555; }
+        .admin-link:hover { color: #444; }
     </style>
 </head>
 <body>
@@ -139,6 +138,7 @@
                 btn.innerText = "LANÇAR BOLA DE FOGO"; 
                 btn.classList.add('hot'); 
                 prepararLancamento(authCode);
+                // Remove o código da URL para ficar limpo
                 window.history.replaceState({}, document.title, REDIRECT_URI);
             }
         };
@@ -158,19 +158,19 @@
                 
                 const data = await resp.json();
                 
-                // SALVA O TOKEN PARA A GERÊNCIA USAR DEPOIS
                 if (data.token) {
+                    // GUARDA O TOKEN NO NAVEGADOR
                     localStorage.setItem('asana_token', data.token);
+                    console.log("Token de gerência ativado! 🔥");
                 }
             } catch (error) {
-                console.error("Erro na API:", error);
+                console.error("Erro ao preparar lançamento:", error);
             }
         }
 
-        // FUNÇÃO DA PALAVRA-PASSE
         function acessoGerencia() {
             const senha = prompt("Digite a palavra-passe de gerência:");
-            if (senha === "fogo123") { // Escolha sua senha aqui!
+            if (senha === "fogo123") { // Sua senha
                 window.location.href = "gerencia.html";
             } else {
                 alert("Acesso negado.");
@@ -189,8 +189,10 @@
         function launchFireballEffect() {
             const ball = document.getElementById('fireball-effect');
             const btn = document.getElementById('action-btn');
+            
             btn.disabled = true;
             btn.innerText = "Lançando...";
+            
             ball.style.display = 'block';
             ball.style.left = '50%';
             ball.style.top = '50%';
@@ -199,13 +201,14 @@
             let scale = 1;
             let opacity = 0.8;
             const id = setInterval(frame, 10);
+            
             function frame() {
                 if (scale > 15 || opacity < 0.1) {
                     clearInterval(id);
                     ball.style.display = 'none';
                     btn.innerText = "Asana Limpo! 🔥";
-                    alert('Bola de Fogo lançada!');
-                    setTimeout(()=> location.reload(), 2000);
+                    alert('Bola de Fogo lançada com sucesso!');
+                    setTimeout(() => location.reload(), 2000);
                 } else {
                     scale += 0.5;
                     opacity -= 0.02;
