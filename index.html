@@ -97,6 +97,19 @@
             z-index: -1;
             opacity: 0.8;
         }
+
+        /* Botão discreto para gerência */
+        .admin-link {
+            margin-top: 40px;
+            color: #333;
+            text-decoration: none;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .admin-link:hover { color: #555; }
     </style>
 </head>
 <body>
@@ -111,8 +124,9 @@
         <div id="fireball-effect" class="fireball-effect"></div>
     </div>
 
+    <div class="admin-link" onclick="acessoGerencia()">Acesso Restrito</div>
+
     <script>
-        // CONFIGURAÇÕES DIRETAS (Fica mais fácil e para de dar erro)
         const CLIENT_ID = '1213884306145874'; 
         const REDIRECT_URI = 'https://boladefogo-zeta.vercel.app/'; 
 
@@ -122,34 +136,44 @@
             const btn = document.getElementById('action-btn');
 
             if (authCode) {
-                // Se tem código na URL, o botão fica VERMELHO e PRONTO
                 btn.innerText = "LANÇAR BOLA DE FOGO"; 
                 btn.classList.add('hot'); 
-                
-                // Manda o código pro servidor processar o trator de tarefas
                 prepararLancamento(authCode);
-
-                // Limpa a URL para o código não ficar exposto
                 window.history.replaceState({}, document.title, REDIRECT_URI);
             }
         };
 
-        // Função de Login
         function loginAsana() {
             const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
             window.location.href = authUrl;
         }
 
-        // Função que avisa a API
         async function prepararLancamento(authCode) {
             try {
-                await fetch('/api/burn', {
+                const resp = await fetch('/api/burn', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code: authCode })
                 });
+                
+                const data = await resp.json();
+                
+                // SALVA O TOKEN PARA A GERÊNCIA USAR DEPOIS
+                if (data.token) {
+                    localStorage.setItem('asana_token', data.token);
+                }
             } catch (error) {
                 console.error("Erro na API:", error);
+            }
+        }
+
+        // FUNÇÃO DA PALAVRA-PASSE
+        function acessoGerencia() {
+            const senha = prompt("Digite a palavra-passe de gerência:");
+            if (senha === "fogo123") { // Escolha sua senha aqui!
+                window.location.href = "gerencia.html";
+            } else {
+                alert("Acesso negado.");
             }
         }
 
@@ -165,10 +189,8 @@
         function launchFireballEffect() {
             const ball = document.getElementById('fireball-effect');
             const btn = document.getElementById('action-btn');
-            
             btn.disabled = true;
             btn.innerText = "Lançando...";
-            
             ball.style.display = 'block';
             ball.style.left = '50%';
             ball.style.top = '50%';
@@ -182,11 +204,8 @@
                     clearInterval(id);
                     ball.style.display = 'none';
                     btn.innerText = "Asana Limpo! 🔥";
-                    btn.classList.remove('hot');
-                    btn.style.backgroundColor = '#111';
-                    
-                    alert('Bola de Fogo lançada! Suas tarefas foram empurradas para amanhã.');
-                    setTimeout(()=> location.reload(), 3000);
+                    alert('Bola de Fogo lançada!');
+                    setTimeout(()=> location.reload(), 2000);
                 } else {
                     scale += 0.5;
                     opacity -= 0.02;
