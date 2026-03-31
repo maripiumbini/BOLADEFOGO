@@ -11,19 +11,31 @@ export default async function handler(req, res) {
         const meData = await meResp.json();
         const workspaces = meData.data.workspaces;
 
-        // 2. Data de HOJE (Formato YYYY-MM-DD)
-        const hoje = new Date().toLocaleDateString('en-CA'); 
+        // 2. LÓGICA DE DATA INTELIGENTE
+        const agora = new Date();
+        const hoje = agora.toLocaleDateString('en-CA'); // Data de HOJE (YYYY-MM-DD)
         
-        // 3. Data de AMANHÃ
         const amanhaData = new Date();
-        amanhaData.setDate(amanhaData.getDate() + 1);
+        const diaDaSemana = agora.getDay(); // 0 = Domingo, 5 = Sexta, 6 = Sábado
+
+        if (diaDaSemana === 5) { 
+            // É SEXTA! Pula 3 dias para cair na SEGUNDA
+            amanhaData.setDate(agora.getDate() + 3);
+        } else if (diaDaSemana === 6) {
+            // Se alguém rodar no SÁBADO, pula 2 dias para SEGUNDA
+            amanhaData.setDate(agora.getDate() + 2);
+        } else {
+            // Dias normais: pula 1 dia
+            amanhaData.setDate(agora.getDate() + 1);
+        }
+
         const amanhaFormatado = amanhaData.toLocaleDateString('en-CA');
 
         let totalReagendadas = 0;
 
-        // 4. VARRE TODOS OS WORKSPACES
+        // 3. VARRE TODOS OS WORKSPACES
         for (const ws of workspaces) {
-            // 5. VARRE CADA USUÁRIO SELECIONADO NESSE WORKSPACE
+            // 4. VARRE CADA USUÁRIO SELECIONADO NESSE WORKSPACE
             for (const userGid of usuarios) {
                 const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=${userGid}&workspace=${ws.gid}&completed_since=now&opt_fields=due_on,completed`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -33,7 +45,7 @@ export default async function handler(req, res) {
                 const tasks = tasksData.data || [];
 
                 for (const task of tasks) {
-                    // FILTRO: Não concluída E Data de entrega é HOJE
+                    // FILTRO: Não concluída E Data de entrega é EXATAMENTE HOJE
                     if (!task.completed && task.due_on === hoje) {
                         await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
                             method: 'PUT',
