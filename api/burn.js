@@ -29,18 +29,29 @@ export default async function handler(req, res) {
             const userData = await userResp.json();
             const workspaces = userData.data.workspaces;
 
-            // 1. PEGA A DATA DE HOJE (Formato YYYY-MM-DD)
-            const hoje = new Date().toISOString().split('T')[0];
+            // 1. DATA DE HOJE E LÓGICA DE FIM DE SEMANA
+            const agora = new Date();
+            const hoje = agora.toLocaleDateString('en-CA'); 
             
-            // 2. DEFINE AMANHÃ
             const amanhaData = new Date();
-            amanhaData.setDate(amanhaData.getDate() + 1);
-            const amanhaFormatado = amanhaData.toISOString().split('T')[0];
+            const diaDaSemana = agora.getDay(); // 0=Dom, 5=Sex, 6=Sáb
+
+            if (diaDaSemana === 5) { 
+                // Sexta -> Pula para Segunda
+                amanhaData.setDate(agora.getDate() + 3);
+            } else if (diaDaSemana === 6) {
+                // Sábado -> Pula para Segunda
+                amanhaData.setDate(agora.getDate() + 2);
+            } else {
+                // Dia normal -> Pula 1 dia
+                amanhaData.setDate(agora.getDate() + 1);
+            }
+
+            const amanhaFormatado = amanhaData.toLocaleDateString('en-CA');
 
             let totalReagendadas = 0;
 
             for (const workspace of workspaces) {
-                // Buscamos as tarefas (pedindo o campo 'due_on' para comparar)
                 const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?workspace=${workspace.gid}&assignee=me&completed_since=now&opt_fields=due_on,completed`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
@@ -49,7 +60,7 @@ export default async function handler(req, res) {
                 const tasks = tasksData.data || [];
 
                 for (const task of tasks) {
-                    // 🔥 O FILTRO DE MESTRE:
+                    // FILTRO: Não concluída E (Vencendo hoje ou já atrasada)
                     if (!task.completed && task.due_on && task.due_on <= hoje) {
                         await fetch(`https://app.asana.com/api/1.0/tasks/${task.gid}`, {
                             method: 'PUT',
@@ -64,7 +75,6 @@ export default async function handler(req, res) {
                 }
             }
 
-            // AQUI ESTÁ A MUDANÇA: Retornamos o token para o localStorage do navegador
             return res.status(200).json({ 
                 success: true, 
                 reagendadas: totalReagendadas,
