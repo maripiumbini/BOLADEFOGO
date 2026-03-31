@@ -1,26 +1,12 @@
-<button id="login-btn" class="login-button" onclick="loginAsana()">Conectar meu Asana</button>
-
-<style>
-    .login-button {
-        background-color: #ffffff;
-        color: #000;
-        padding: 10px 20px;
-        border-radius: 5px;
-        border: none;
-        font-weight: bold;
-        cursor: pointer;
-        margin-bottom: 20px;
-        transition: opacity 0.3s;
-    }
-    .login-button:hover { opacity: 0.8; }
-</style>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOLA DE FOGO 🔥</title>
+    <title>BOLA DE FOGO ☄️🔥</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
         body {
             background-color: #0d0d0d;
             color: white;
@@ -32,108 +18,176 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            text-align: center;
         }
 
         h1 {
-            font-size: 3rem;
-            letter-spacing: -2px;
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: -4px;
             margin-bottom: 10px;
             text-transform: uppercase;
-            background: linear-gradient(to right, #ff4500, #ff8c00);
+            background: linear-gradient(to right, #ff4500, #ff8c00, #ff4500);
+            background-size: 200% auto;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            animation: shineText 3s linear infinite;
+        }
+
+        @keyframes shineText {
+            to { background-position: 200% center; }
         }
 
         p {
             color: #888;
-            margin-bottom: 40px;
+            font-size: 1.1rem;
+            margin-bottom: 50px;
+            max-width: 400px;
+            line-height: 1.5;
         }
 
-        .fire-button {
+        /* Container do Botão Central */
+        .button-container {
             position: relative;
-            padding: 20px 50px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: white;
-            background: linear-gradient(45deg, #ff4500, #ff0000);
-            border: none;
-            border-radius: 50px;
+            z-index: 5;
+        }
+
+        /* Estilo Base do Botão (Login/Frio) */
+        .main-button {
+            padding: 22px 60px;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #444; /* Texto escuro no modo frio */
+            background-color: #1a1a1a; /* Fundo escuro no modo frio */
+            border: 2px solid #333;
+            border-radius: 60px;
             cursor: pointer;
             text-transform: uppercase;
-            box-shadow: 0 0 20px rgba(255, 69, 0, 0.6);
-            transition: transform 0.2s, box-shadow 0.2s;
+            letter-spacing: -1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
 
-        .fire-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(255, 69, 0, 0.9);
+        .main-button:hover {
+            border-color: #555;
+            color: #888;
+            transform: translateY(-2px);
         }
 
-        .fire-button:active {
-            transform: scale(0.95);
+        /* Estilo quando o botão está QUENTE (Pronto para Lançar) */
+        .main-button.hot {
+            color: white;
+            background: linear-gradient(45deg, #ff3d00, #ff1744);
+            border: none;
+            box-shadow: 0 0 30px rgba(255, 61, 0, 0.7);
+            animation: pulseFire 2s infinite;
         }
 
-        /* Animação da Bola de Fogo */
-        .fireball {
+        .main-button.hot:hover {
+            box-shadow: 0 0 50px rgba(255, 61, 0, 1);
+            transform: scale(1.03);
+        }
+
+        @keyframes pulseFire {
+            0% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
+            50% { box-shadow: 0 0 60px rgba(255, 61, 0, 0.9); }
+            100% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
+        }
+
+        /* Elemento Visual da Bola de Fogo */
+        .fireball-effect {
             position: absolute;
-            width: 50px;
-            height: 50px;
-            background: radial-gradient(circle, #ffca28, #ff7043, #d32f2f);
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #fff3e0, #ffb74d, #ff5722, #d84315);
             border-radius: 50%;
-            filter: blur(5px);
+            filter: blur(10px);
             display: none;
-            z-index: 10;
+            z-index: -1;
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
 
     <h1>BOLA DE FOGO</h1>
-    <p>Limpe seu Asana. Reagende tudo para amanhã em um clique.</p>
+    <p>Cansada de tarefas atrasadas?<br>Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
 
-    <button class="fire-button" onclick="launchFireball()">Lançar Bola de Fogo</button>
-
-    <div id="fireball" class="fireball"></div>
+    <div class="button-container">
+        <button id="action-btn" class="main-button" onclick="handleActionButton()">
+            Aquecer (Conectar Asana)
+        </button>
+        <div id="fireball-effect" class="fireball-effect"></div>
+    </div>
 
     <script>
-        function launchFireball() {
-            const ball = document.getElementById('fireball');
-            ball.style.display = 'block';
-            ball.style.left = '-100px';
-            ball.style.top = '50%';
+        // CONFIGURAÇÕES DO ASANA (SaaS)
+        const CLIENT_ID = 'SEU_CLIENT_ID_AQUI'; // <--- Cola seu Client ID aqui
+        const REDIRECT_URI = window.location.origin + window.location.pathname; 
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authCode = urlParams.get('code');
+            const btn = document.getElementById('action-btn');
+
+            if (authCode) {
+                // ESTADO: LOGADO. Botão fica QUENTE.
+                console.log("Bola de Fogo aquecida! Código: " + authCode);
+                btn.innerText = "LANÇAR BOLA DE FOGO"; // Texto Direto
+                btn.classList.add('hot'); // Visual Pulsante
+                window.history.replaceState({}, document.title, REDIRECT_URI);
+            }
+        };
+
+        function handleActionButton() {
+            const btn = document.getElementById('action-btn');
             
-            // Animação simples atravessando a tela
-            let pos = -100;
-            const id = setInterval(frame, 5);
+            if (btn.classList.contains('hot')) {
+                launchFireballEffect();
+            } else {
+                loginAsana();
+            }
+        }
+
+        function loginAsana() {
+            const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
+            window.location.href = authUrl;
+        }
+
+        function launchFireballEffect() {
+            const ball = document.getElementById('fireball-effect');
+            const btn = document.getElementById('action-btn');
+            
+            btn.disabled = true;
+            btn.innerText = "Lançando...";
+            
+            ball.style.display = 'block';
+            ball.style.left = '50%';
+            ball.style.top = '50%';
+            ball.style.transform = 'translate(-50%, -50%) scale(1)';
+            
+            let scale = 1;
+            let opacity = 0.8;
+            const id = setInterval(frame, 10);
             function frame() {
-                if (pos > window.innerWidth + 100) {
+                if (scale > 15 || opacity < 0.1) {
                     clearInterval(id);
                     ball.style.display = 'none';
-                    alert('Asana limpo! 🔥 As tarefas foram empurradas para amanhã.');
+                    btn.innerText = "Asana Limpo! 🔥";
+                    btn.classList.remove('hot');
+                    btn.style.backgroundColor = '#111';
+                    
+                    alert('Bola de Fogo lançada com sucesso! Suas tarefas pendentes foram reagendadas para amanhã.');
+                    
+                    setTimeout(()=> location.reload(), 3000);
                 } else {
-                    pos += 15;
-                    ball.style.left = pos + 'px';
-                    // Efeito de oscilação
-                    ball.style.marginTop = Math.sin(pos / 50) * 20 + 'px';
+                    scale += 0.5;
+                    opacity -= 0.02;
+                    ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                    ball.style.opacity = opacity;
                 }
             }
         }
-    </const CLIENT_ID = '1213884306145874'; // <--- Cola seu Client ID aqui
-
-const REDIRECT_URI = 'https://maripiumbini.github.io/boladefogo/'; // <--- O link do seu site (ex: https://maripiumbini.github.io/boladefogo/)
-
-
-
-function loginAsana() {
-
-    // Esse link leva o usuário para a página oficial do Asana para ele autorizar você
-
-    const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
-
-    
-
-    window.location.href = authUrl;
-
-}>
+    </script>
 </body>
 </html>
