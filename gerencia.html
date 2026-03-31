@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>CENTRAL DE COMANDO ⚖️</title>
+    <style>
+        body { background: #0d0d0d; color: white; font-family: 'Inter', sans-serif; text-align: center; padding: 50px; }
+        .user-card { 
+            display: inline-flex; align-items: center; background: #1a1a1a; 
+            padding: 15px; margin: 10px; border-radius: 12px; border: 1px solid #333;
+            width: 250px; text-align: left; cursor: pointer; transition: 0.3s;
+        }
+        .user-card:hover { border-color: #ff4500; }
+        .user-card img { border-radius: 50%; margin-right: 15px; width: 45px; height: 45px; }
+        .user-card input { margin-right: 15px; transform: scale(1.5); }
+        h1 { background: linear-gradient(to right, #4facfe, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .btn-panic { 
+            background: #ff4500; color: white; padding: 20px 40px; 
+            border: none; border-radius: 50px; font-weight: 900; 
+            cursor: pointer; margin-top: 30px; font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>PAINEL DE GERÊNCIA</h1>
+    <p>Selecione os colaboradores para reagendar as tarefas de hoje:</p>
+
+    <div id="lista-equipe">Carregando equipe...</div>
+
+    <button class="btn-panic" onclick="lancarBolaDeFogoEquipe()">REAGENDAR SELECIONADOS 🔥</button>
+
+    <script>
+        // O Token que você já pegou no login anterior (ou refaz o login aqui)
+        // DICA: Para facilitar, a gente pode salvar o token no "localStorage" quando logar na index.
+        const token = localStorage.getItem('asana_token'); 
+
+        async function carregarEquipe() {
+            const resp = await fetch('/api/equipe', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const equipe = await resp.json();
+            
+            const container = document.getElementById('lista-equipe');
+            container.innerHTML = '';
+
+            equipe.forEach(user => {
+                const foto = user.photo ? user.photo.image_60x60 : 'https://via.placeholder.com/60';
+                container.innerHTML += `
+                    <div class="user-card">
+                        <input type="checkbox" value="${user.gid}" class="user-check">
+                        <img src="${foto}">
+                        <span>${user.name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        async function lancarBolaDeFogoEquipe() {
+            const selecionados = Array.from(document.querySelectorAll('.user-check:checked')).map(cb => cb.value);
+            if (selecionados.length === 0) return alert("Selecione alguém!");
+
+            const btn = document.querySelector('.btn-panic');
+            btn.innerText = "Limpando pauta...";
+            btn.disabled = true;
+
+            // Envia para uma nova API que trata múltiplos usuários
+            const resp = await fetch('/api/burn-equipe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    usuarios: selecionados,
+                    token: token 
+                })
+            });
+
+            const resultado = await resp.json();
+            alert(`Sucesso! ${resultado.total} tarefas reagendadas para a equipe.`);
+            location.reload();
+        }
+
+        if (token) carregarEquipe(); else window.location.href = '/';
+    </script>
+</body>
+</html>
