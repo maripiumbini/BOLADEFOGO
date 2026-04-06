@@ -80,6 +80,13 @@
             animation: pulseFire 2s infinite;
         }
 
+        /* Estilo para quando o Modo Apocalipse for ativado */
+        .main-button.apocalypse-active {
+            background: linear-gradient(45deg, #6a11cb, #2575fc) !important;
+            box-shadow: 0 0 40px rgba(37, 117, 252, 0.8) !important;
+            color: white !important;
+        }
+
         @keyframes pulseFire {
             0% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
             50% { box-shadow: 0 0 60px rgba(255, 61, 0, 0.9); }
@@ -113,15 +120,21 @@
         }
         .admin-link:hover { color: #444; }
 
-        /* Ponto escondido do Modo Apocalipse */
+        /* EASTER EGG: O Raio Escondido */
         #secret-trigger {
             position: fixed;
-            bottom: 10px;
-            right: 10px;
-            opacity: 0.05;
+            bottom: 15px;
+            right: 15px;
+            opacity: 0.2;
             cursor: help;
-            font-size: 10px;
-            color: #333;
+            font-size: 18px;
+            color: #444;
+            transition: 0.3s;
+            user-select: none;
+        }
+        #secret-trigger:hover {
+            opacity: 0.8;
+            color: #ff8c00;
         }
     </style>
 </head>
@@ -139,7 +152,7 @@
 
     <div class="admin-link" onclick="acessoGerencia()">Acesso Restrito</div>
     
-    <div id="secret-trigger" onclick="ativarModoApocalipse()">.</div>
+    <div id="secret-trigger" onclick="ativarModoApocalipse()">⚡</div>
 
     <script>
         const CLIENT_ID = '1213884306145874'; 
@@ -163,13 +176,14 @@
         };
 
         function ativarModoApocalipse() {
-            const senha = prompt("CÓDIGO DE DESTRUIÇÃO:");
+            const senha = prompt("SISTEMA DE EMERGÊNCIA: Digite o código de destruição:");
             if (senha === "apocalipse5") {
                 isApocalypse = true;
                 const btn = document.getElementById('action-btn');
                 const desc = document.getElementById('desc-p');
+                
                 btn.innerText = "ATIVAR APOCALIPSE ☄️";
-                btn.style.background = "linear-gradient(45deg, #6a11cb, #2575fc)";
+                btn.classList.add('apocalypse-active');
                 desc.innerHTML = "<b>MODO APOCALIPSE ATIVADO</b><br>Tudo será empurrado 5 dias úteis para frente.";
                 alert("Modo Apocalipse pronto para lançamento. 🔥");
             }
@@ -187,7 +201,7 @@
                 
                 if (data.token) {
                     localStorage.setItem('asana_token', data.token);
-                    console.log("Token de gerência ativado! 🔥");
+                    console.log("Token ativado! 🔥");
                 } else {
                     alert("Erro ao obter token: " + (data.message || "Verifique os logs."));
                 }
@@ -219,6 +233,8 @@
         async function executarQueima() {
             const token = localStorage.getItem('asana_token');
             const apiPath = isApocalypse ? '/api/burn-apocalipse' : '/api/burn-equipe';
+            
+            // Se for apocalipse, chama a API nova. Se for normal, chama a de equipe passando apenas você.
             const bodyData = isApocalypse ? { token } : { usuarios: ['me'], token };
 
             try {
@@ -230,10 +246,7 @@
 
                 const resultado = await resp.json();
 
-                if (resp.ok) {
-                    // Feedback que você gosta de ter:
-                    console.log(`Sucesso! ${resultado.reagendadas || 0} tarefas reagendadas.`);
-                } else {
+                if (!resp.ok) {
                     alert("Erro da API: " + (resultado.message || "Erro desconhecido"));
                 }
             } catch (error) {
