@@ -80,6 +80,12 @@
             animation: pulseFire 2s infinite;
         }
 
+        /* Estilo especial para o Modo Apocalipse Ativado */
+        .main-button.apocalypse-active {
+            background: linear-gradient(45deg, #6a11cb, #2575fc) !important;
+            box-shadow: 0 0 40px rgba(37, 117, 252, 0.8) !important;
+        }
+
         @keyframes pulseFire {
             0% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
             50% { box-shadow: 0 0 60px rgba(255, 61, 0, 0.9); }
@@ -96,6 +102,9 @@
             display: none;
             z-index: -1;
             opacity: 0.8;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
         }
 
         .admin-link {
@@ -109,12 +118,24 @@
             transition: 0.3s;
         }
         .admin-link:hover { color: #444; }
+
+        /* Botão Escondido (Easter Egg) */
+        #trigger-apocalipse {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            opacity: 0.05;
+            cursor: help;
+            font-size: 10px;
+            color: #333;
+            user-select: none;
+        }
     </style>
 </head>
 <body>
 
     <h1>BOLA DE FOGO</h1>
-    <p>Cansada de tarefas atrasadas?<br>Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
+    <p id="p-desc">Cansada de tarefas atrasadas?<br>Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
 
     <div class="button-container">
         <button id="action-btn" class="main-button" onclick="handleActionButton()">
@@ -125,27 +146,45 @@
 
     <div class="admin-link" onclick="acessoGerencia()">Acesso Restrito</div>
 
+    <div id="trigger-apocalipse" onclick="ativarModoApocalipse()">.</div>
+
     <script>
         const CLIENT_ID = '1213884306145874'; 
-        const REDIRECT_URI = 'https://boladefogo-zeta.vercel.app/'; 
+        const REDIRECT_URI = window.location.origin + '/'; 
+        let modoAtivo = 'normal';
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const authCode = urlParams.get('code');
+            const tokenSalvo = localStorage.getItem('asana_token');
             const btn = document.getElementById('action-btn');
 
             if (authCode) {
-                btn.innerText = "LANÇAR BOLA DE FOGO"; 
-                btn.classList.add('hot'); 
                 prepararLancamento(authCode);
-                // Remove o código da URL para ficar limpo
                 window.history.replaceState({}, document.title, REDIRECT_URI);
+            } else if (tokenSalvo) {
+                configurarBotãoPronto();
             }
         };
 
-        function loginAsana() {
-            const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
-            window.location.href = authUrl;
+        function configurarBotãoPronto() {
+            const btn = document.getElementById('action-btn');
+            btn.innerText = "LANÇAR BOLA DE FOGO"; 
+            btn.classList.add('hot');
+        }
+
+        function ativarModoApocalipse() {
+            const senha = prompt("SISTEMA DE EMERGÊNCIA: Digite o código de destruição:");
+            if (senha === "apocalipse5") {
+                modoAtivo = 'apocalipse';
+                const btn = document.getElementById('action-btn');
+                const desc = document.getElementById('p-desc');
+                
+                btn.classList.add('apocalypse-active');
+                btn.innerText = "MODO APOCALIPSE ☄️";
+                desc.innerHTML = "<b>MODO APOCALIPSE ATIVADO</b><br>Tudo será empurrado 5 dias úteis para frente.";
+                alert("Prepare-se. O tempo está em suas mãos. 🔥");
+            }
         }
 
         async function prepararLancamento(authCode) {
@@ -155,34 +194,51 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code: authCode })
                 });
-                
                 const data = await resp.json();
-                
                 if (data.token) {
-                    // GUARDA O TOKEN NO NAVEGADOR
                     localStorage.setItem('asana_token', data.token);
-                    console.log("Token de gerência ativado! 🔥");
+                    configurarBotãoPronto();
                 }
-            } catch (error) {
-                console.error("Erro ao preparar lançamento:", error);
-            }
+            } catch (error) { console.error("Erro no Auth:", error); }
         }
 
         function acessoGerencia() {
-            const senha = prompt("Digite a palavra-passe de gerência:");
-            if (senha === "fogo123") { // Sua senha
-                window.location.href = "gerencia.html";
-            } else {
-                alert("Acesso negado.");
-            }
+            const senha = prompt("Palavra-passe de gerência:");
+            if (senha === "fogo123") window.location.href = "gerencia.html";
+            else alert("Acesso negado.");
         }
 
         function handleActionButton() {
             const btn = document.getElementById('action-btn');
             if (btn.classList.contains('hot')) {
-                launchFireballEffect();
+                executarQueima();
             } else {
-                loginAsana();
+                window.location.href = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
+            }
+        }
+
+        async function executarQueima() {
+            const token = localStorage.getItem('asana_token');
+            const btn = document.getElementById('action-btn');
+            
+            launchFireballEffect();
+
+            try {
+                const resp = await fetch('/api/burn-equipe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        usuarios: ['me'], 
+                        token: token,
+                        modo: modoAtivo 
+                    })
+                });
+                
+                if (!resp.ok) throw new Error("Erro na API");
+                
+            } catch (error) {
+                console.error(error);
+                alert("Falha no lançamento. Verifique o console.");
             }
         }
 
@@ -191,31 +247,24 @@
             const btn = document.getElementById('action-btn');
             
             btn.disabled = true;
-            btn.innerText = "Lançando...";
-            
+            btn.innerText = modoAtivo === 'apocalipse' ? "DESTRUINDO PAUTAS..." : "Lançando...";
             ball.style.display = 'block';
-            ball.style.left = '50%';
-            ball.style.top = '50%';
-            ball.style.transform = 'translate(-50%, -50%) scale(1)';
             
             let scale = 1;
             let opacity = 0.8;
-            const id = setInterval(frame, 10);
-            
-            function frame() {
-                if (scale > 15 || opacity < 0.1) {
-                    clearInterval(id);
+            const anim = setInterval(() => {
+                if (scale > 20 || opacity < 0) {
+                    clearInterval(anim);
                     ball.style.display = 'none';
-                    btn.innerText = "Asana Limpo! 🔥";
-                    alert('Bola de Fogo lançada com sucesso!');
+                    btn.innerText = "Limpeza Concluída! 🔥";
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    scale += 0.5;
+                    scale += 0.4;
                     opacity -= 0.02;
                     ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
                     ball.style.opacity = opacity;
                 }
-            }
+            }, 15);
         }
     </script>
 </body>
