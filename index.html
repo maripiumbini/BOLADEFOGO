@@ -80,12 +80,6 @@
             animation: pulseFire 2s infinite;
         }
 
-        /* Estilo especial para o Modo Apocalipse Ativado */
-        .main-button.apocalypse-active {
-            background: linear-gradient(45deg, #6a11cb, #2575fc) !important;
-            box-shadow: 0 0 40px rgba(37, 117, 252, 0.8) !important;
-        }
-
         @keyframes pulseFire {
             0% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
             50% { box-shadow: 0 0 60px rgba(255, 61, 0, 0.9); }
@@ -119,8 +113,8 @@
         }
         .admin-link:hover { color: #444; }
 
-        /* Botão Escondido (Easter Egg) */
-        #trigger-apocalipse {
+        /* Ponto escondido do Modo Apocalipse */
+        #secret-trigger {
             position: fixed;
             bottom: 10px;
             right: 10px;
@@ -128,14 +122,13 @@
             cursor: help;
             font-size: 10px;
             color: #333;
-            user-select: none;
         }
     </style>
 </head>
 <body>
 
     <h1>BOLA DE FOGO</h1>
-    <p id="p-desc">Cansada de tarefas atrasadas?<br>Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
+    <p id="desc-p">Cansada de tarefas atrasadas?<br>Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
 
     <div class="button-container">
         <button id="action-btn" class="main-button" onclick="handleActionButton()">
@@ -145,45 +138,40 @@
     </div>
 
     <div class="admin-link" onclick="acessoGerencia()">Acesso Restrito</div>
-
-    <div id="trigger-apocalipse" onclick="ativarModoApocalipse()">.</div>
+    
+    <div id="secret-trigger" onclick="ativarModoApocalipse()">.</div>
 
     <script>
         const CLIENT_ID = '1213884306145874'; 
         const REDIRECT_URI = window.location.origin + '/'; 
-        let modoAtivo = 'normal';
+        let isApocalypse = false;
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const authCode = urlParams.get('code');
-            const tokenSalvo = localStorage.getItem('asana_token');
             const btn = document.getElementById('action-btn');
 
             if (authCode) {
+                btn.innerText = "LANÇAR BOLA DE FOGO"; 
+                btn.classList.add('hot'); 
                 prepararLancamento(authCode);
                 window.history.replaceState({}, document.title, REDIRECT_URI);
-            } else if (tokenSalvo) {
-                configurarBotãoPronto();
+            } else if (localStorage.getItem('asana_token')) {
+                btn.innerText = "LANÇAR BOLA DE FOGO"; 
+                btn.classList.add('hot');
             }
         };
 
-        function configurarBotãoPronto() {
-            const btn = document.getElementById('action-btn');
-            btn.innerText = "LANÇAR BOLA DE FOGO"; 
-            btn.classList.add('hot');
-        }
-
         function ativarModoApocalipse() {
-            const senha = prompt("SISTEMA DE EMERGÊNCIA: Digite o código de destruição:");
+            const senha = prompt("CÓDIGO DE DESTRUIÇÃO:");
             if (senha === "apocalipse5") {
-                modoAtivo = 'apocalipse';
+                isApocalypse = true;
                 const btn = document.getElementById('action-btn');
-                const desc = document.getElementById('p-desc');
-                
-                btn.classList.add('apocalypse-active');
-                btn.innerText = "MODO APOCALIPSE ☄️";
+                const desc = document.getElementById('desc-p');
+                btn.innerText = "ATIVAR APOCALIPSE ☄️";
+                btn.style.background = "linear-gradient(45deg, #6a11cb, #2575fc)";
                 desc.innerHTML = "<b>MODO APOCALIPSE ATIVADO</b><br>Tudo será empurrado 5 dias úteis para frente.";
-                alert("Prepare-se. O tempo está em suas mãos. 🔥");
+                alert("Modo Apocalipse pronto para lançamento. 🔥");
             }
         }
 
@@ -194,51 +182,62 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code: authCode })
                 });
+                
                 const data = await resp.json();
+                
                 if (data.token) {
                     localStorage.setItem('asana_token', data.token);
-                    configurarBotãoPronto();
+                    console.log("Token de gerência ativado! 🔥");
+                } else {
+                    alert("Erro ao obter token: " + (data.message || "Verifique os logs."));
                 }
-            } catch (error) { console.error("Erro no Auth:", error); }
+            } catch (error) {
+                alert("Erro de conexão ao preparar: " + error.message);
+            }
         }
 
         function acessoGerencia() {
-            const senha = prompt("Palavra-passe de gerência:");
-            if (senha === "fogo123") window.location.href = "gerencia.html";
-            else alert("Acesso negado.");
+            const senha = prompt("Digite a palavra-passe de gerência:");
+            if (senha === "fogo123") {
+                window.location.href = "gerencia.html";
+            } else {
+                alert("Acesso negado.");
+            }
         }
 
         function handleActionButton() {
             const btn = document.getElementById('action-btn');
             if (btn.classList.contains('hot')) {
+                launchFireballEffect();
                 executarQueima();
             } else {
-                window.location.href = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
+                const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
+                window.location.href = authUrl;
             }
         }
 
         async function executarQueima() {
             const token = localStorage.getItem('asana_token');
-            const btn = document.getElementById('action-btn');
-            
-            launchFireballEffect();
+            const apiPath = isApocalypse ? '/api/burn-apocalipse' : '/api/burn-equipe';
+            const bodyData = isApocalypse ? { token } : { usuarios: ['me'], token };
 
             try {
-                const resp = await fetch('/api/burn-equipe', {
+                const resp = await fetch(apiPath, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        usuarios: ['me'], 
-                        token: token,
-                        modo: modoAtivo 
-                    })
+                    body: JSON.stringify(bodyData)
                 });
-                
-                if (!resp.ok) throw new Error("Erro na API");
-                
+
+                const resultado = await resp.json();
+
+                if (resp.ok) {
+                    // Feedback que você gosta de ter:
+                    console.log(`Sucesso! ${resultado.reagendadas || 0} tarefas reagendadas.`);
+                } else {
+                    alert("Erro da API: " + (resultado.message || "Erro desconhecido"));
+                }
             } catch (error) {
-                console.error(error);
-                alert("Falha no lançamento. Verifique o console.");
+                alert("Erro de rede: " + error.message);
             }
         }
 
@@ -247,19 +246,20 @@
             const btn = document.getElementById('action-btn');
             
             btn.disabled = true;
-            btn.innerText = modoAtivo === 'apocalipse' ? "DESTRUINDO PAUTAS..." : "Lançando...";
-            ball.style.display = 'block';
+            btn.innerText = isApocalypse ? "EXTINGUINDO..." : "Lançando...";
             
+            ball.style.display = 'block';
             let scale = 1;
             let opacity = 0.8;
-            const anim = setInterval(() => {
-                if (scale > 20 || opacity < 0) {
-                    clearInterval(anim);
+            const id = setInterval(() => {
+                if (scale > 15 || opacity < 0.1) {
+                    clearInterval(id);
                     ball.style.display = 'none';
-                    btn.innerText = "Limpeza Concluída! 🔥";
-                    setTimeout(() => location.reload(), 2000);
+                    btn.innerText = "Asana Limpo! 🔥";
+                    alert('Bola de Fogo lançada com sucesso!');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    scale += 0.4;
+                    scale += 0.5;
                     opacity -= 0.02;
                     ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
                     ball.style.opacity = opacity;
