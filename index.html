@@ -80,7 +80,6 @@
             animation: pulseFire 2s infinite;
         }
 
-        /* Estilo para quando o Modo Apocalipse for ativado */
         .main-button.apocalypse-active {
             background: linear-gradient(45deg, #6a11cb, #2575fc) !important;
             box-shadow: 0 0 40px rgba(37, 117, 252, 0.8) !important;
@@ -120,7 +119,6 @@
         }
         .admin-link:hover { color: #444; }
 
-        /* EASTER EGG: O Raio Escondido */
         #secret-trigger {
             position: fixed;
             bottom: 15px;
@@ -232,22 +230,20 @@
 
         async function executarQueima() {
             const token = localStorage.getItem('asana_token');
-            const apiPath = isApocalypse ? '/api/burn-apocalipse' : '/api/burn-equipe';
+            // MUDANÇA CRÍTICA: Se não for apocalipse, chama a API normal 'burn'
+            const apiPath = isApocalypse ? '/api/burn-apocalipse' : '/api/burn';
             
-            // Se for apocalipse, chama a API nova. Se for normal, chama a de equipe passando apenas você.
-            const bodyData = isApocalypse ? { token } : { usuarios: ['me'], token };
-
             try {
                 const resp = await fetch(apiPath, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bodyData)
+                    body: JSON.stringify({ token: token })
                 });
 
                 const resultado = await resp.json();
 
                 if (!resp.ok) {
-                    alert("Erro da API: " + (resultado.message || "Erro desconhecido"));
+                    alert("Erro da API: " + (resultado.error || resultado.message || "Erro desconhecido"));
                 }
             } catch (error) {
                 alert("Erro de rede: " + error.message);
