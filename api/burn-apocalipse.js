@@ -4,12 +4,12 @@ export default async function handler(req, res) {
 
     try {
         const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-        
-        // 1. Pega seus Workspaces
         const meResp = await fetch('https://app.asana.com/api/1.0/users/me', { headers });
-        const { data: meData } = await meResp.json();
-        
-        // 2. Calcula 5 dias úteis (Pula Sábado e Domingo)
+        const meData = await meResp.json();
+
+        if (!meData.data) throw new Error("Erro de autenticação no Asana.");
+
+        // Lógica 5 dias úteis
         let data = new Date();
         let adicionados = 0;
         while (adicionados < 5) {
@@ -18,21 +18,20 @@ export default async function handler(req, res) {
         }
         const novaData = data.toISOString().split('T')[0];
         const hoje = new Date().toISOString().split('T')[0];
+        let total = 0;
 
-        // 3. Limpa sua pauta em todos os workspaces
-        for (const ws of meData.workspaces) {
+        for (const ws of meData.data.workspaces) {
             const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&opt_fields=due_on,completed`, { headers });
-            const { data: tarefas } = await tasksResp.json();
+            const tasksJson = await tasksResp.json();
+            const tarefas = tasksJson.data || [];
 
-            const updates = (tarefas || [])
-                .filter(t => !t.completed && t.due_on === hoje)
+            const updates = tarefas.filter(t => !t.completed && t.due_on === hoje)
                 .map(t => fetch(`https://app.asana.com/api/1.0/tasks/${t.gid}`, {
                     method: 'PUT', headers, body: JSON.stringify({ data: { due_on: novaData } })
-                }));
+                }).then(() => total++));
             await Promise.all(updates);
         }
-
-        return res.status(200).json({ success: true, destino: novaData });
+        return res.status(200).json({ success: true, reagendadas: total });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
