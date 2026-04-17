@@ -6,86 +6,246 @@
     <title>BOLA DE FOGO ☄️🔥</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { background: #0d0d0d; color: white; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
-        h1 { font-size: 3.5rem; font-weight: 900; background: linear-gradient(to right, #ff4500, #ff8c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
-        p { color: #888; margin-bottom: 40px; max-width: 350px; }
-        .main-button { padding: 22px 60px; font-size: 1.4rem; font-weight: 900; background: #1a1a1a; border: 2px solid #333; color: #444; border-radius: 60px; cursor: pointer; transition: 0.3s; }
-        .main-button.hot { background: linear-gradient(45deg, #ff3d00, #ff1744); color: white; border: none; box-shadow: 0 0 30px rgba(255, 61, 0, 0.6); }
-        .admin-link { margin-top: 50px; color: #222; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; }
-        #secret-trigger { position: fixed; bottom: 15px; right: 15px; opacity: 0.2; cursor: help; font-size: 20px; }
+
+        body {
+            background-color: #0d0d0d;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: -4px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            background: linear-gradient(to right, #ff4500, #ff8c00, #ff4500);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shineText 3s linear infinite;
+        }
+
+        @keyframes shineText {
+            to { background-position: 200% center; }
+        }
+
+        p {
+            color: #888;
+            font-size: 1.1rem;
+            margin-bottom: 50px;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+
+        .button-container {
+            position: relative;
+            z-index: 5;
+        }
+
+        .main-button {
+            padding: 22px 60px;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #444;
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 60px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .main-button:hover {
+            border-color: #555;
+            color: #888;
+            transform: translateY(-2px);
+        }
+
+        .main-button.hot {
+            color: white;
+            background: linear-gradient(45deg, #ff3d00, #ff1744);
+            border: none;
+            box-shadow: 0 0 30px rgba(255, 61, 0, 0.7);
+            animation: pulseFire 2s infinite;
+        }
+
+        .main-button.apocalypse-active {
+            background: linear-gradient(45deg, #6a11cb, #2575fc) !important;
+            box-shadow: 0 0 40px rgba(37, 117, 252, 0.8) !important;
+        }
+
+        @keyframes pulseFire {
+            0% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
+            50% { box-shadow: 0 0 60px rgba(255, 61, 0, 0.9); }
+            100% { box-shadow: 0 0 30px rgba(255, 61, 0, 0.7); }
+        }
+
+        .fireball-effect {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #fff3e0, #ffb74d, #ff5722, #d84315);
+            border-radius: 50%;
+            filter: blur(10px);
+            display: none;
+            z-index: -1;
+            opacity: 0.8;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .admin-link {
+            margin-top: 40px;
+            color: #222;
+            text-decoration: none;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .admin-link:hover { color: #444; }
+
+        #secret-trigger {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            opacity: 0.2;
+            cursor: help;
+            font-size: 18px;
+            color: #444;
+            transition: 0.3s;
+            user-select: none;
+        }
+        #secret-trigger:hover { opacity: 0.8; color: #ff8c00; }
     </style>
 </head>
 <body>
 
     <h1>BOLA DE FOGO</h1>
-    <p id="desc">Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
+    <p id="desc-p">Cansada de tarefas atrasadas?<br>Limpe seu Asana e empurre tudo para amanhã em um clique.</p>
 
-    <button id="btn" class="main-button" onclick="handleAction()">Aquecer (Conectar Asana)</button>
+    <div class="button-container">
+        <button id="action-btn" class="main-button" onclick="handleActionButton()">
+            Aquecer (Conectar Asana)
+        </button>
+        <div id="fireball-effect" class="fireball-effect"></div>
+    </div>
 
     <div class="admin-link" onclick="acessoGerencia()">Acesso Restrito</div>
-
-    <div id="secret-trigger" onclick="ativarApocalipse()">⚡</div>
+    
+    <div id="secret-trigger" onclick="ativarModoApocalipse()">⚡</div>
 
     <script>
-        let modoApocalipse = false;
-        const REDIRECT = window.location.origin + '/';
+        const CLIENT_ID = '1213884306145874'; 
+        const REDIRECT_URI = window.location.origin + '/'; 
+        let isApocalypse = false;
 
-        window.onload = () => {
-            const code = new URLSearchParams(window.location.search).get('code');
-            if (code) { auth(code); window.history.replaceState({}, '', REDIRECT); }
-            if (localStorage.getItem('asana_token')) setHot();
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authCode = urlParams.get('code');
+            const btn = document.getElementById('action-btn');
+
+            if (authCode) {
+                btn.innerText = "LANÇAR BOLA DE FOGO"; 
+                btn.classList.add('hot'); 
+                prepararLancamento(authCode);
+                window.history.replaceState({}, document.title, REDIRECT_URI);
+            } else if (localStorage.getItem('asana_token')) {
+                btn.innerText = "LANÇAR BOLA DE FOGO"; 
+                btn.classList.add('hot');
+            }
         };
 
-        function setHot() {
-            const b = document.getElementById('btn');
-            b.innerText = "LANÇAR BOLA DE FOGO";
-            b.classList.add('hot');
-        }
-
-        // Senha para ativar o modo 5 dias úteis
-        function ativarApocalipse() {
-            if (prompt("CÓDIGO SECRETO?") === "apocalipse5") {
-                modoApocalipse = true;
-                document.getElementById('btn').innerText = "MODO APOCALIPSE ☄️";
-                document.getElementById('btn').style.background = "linear-gradient(45deg, #6a11cb, #2575fc)";
-                alert("Modo Apocalipse Ativado! 5 dias de folga.");
+        function ativarModoApocalipse() {
+            const senha = prompt("CÓDIGO DE EMERGÊNCIA:");
+            if (senha === "apocalipse5") {
+                isApocalypse = true;
+                const btn = document.getElementById('action-btn');
+                const desc = document.getElementById('desc-p');
+                btn.innerText = "ATIVAR APOCALIPSE ☄️";
+                btn.classList.add('apocalypse-active');
+                desc.innerHTML = "<b>MODO APOCALIPSE ATIVADO</b><br>Tudo será empurrado 5 dias úteis para frente.";
+                alert("Modo Apocalipse ativado. 🔥");
             }
         }
 
-        // Senha para entrar na página da equipe
-        function acessoGerencia() {
-            if (prompt("SENHA DE GERÊNCIA?") === "fogo123") {
-                window.location.href = "gerencia.html"; 
-            } else {
-                alert("Acesso negado.");
-            }
-        }
-
-        async function auth(code) {
-            const r = await fetch('/api/burn', { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ code }) 
-            });
-            const d = await r.json();
-            if (d.token) { localStorage.setItem('asana_token', d.token); setHot(); }
-        }
-
-        async function handleAction() {
-            const btn = document.getElementById('btn');
-            if (!btn.classList.contains('hot')) {
-                window.location.href = `https://app.asana.com/-/oauth_authorize?client_id=1213884306145874&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=code`;
-            } else {
-                btn.innerText = "LANÇANDO...";
-                const api = modoApocalipse ? '/api/burn-apocalipse' : '/api/burn';
-                await fetch(api, { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ token: localStorage.getItem('asana_token') }) 
+        async function prepararLancamento(authCode) {
+            try {
+                const resp = await fetch('/api/burn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: authCode })
                 });
-                alert("Bola de Fogo lançada com sucesso! 🔥");
-                location.reload();
+                const data = await resp.json();
+                if (data.token) {
+                    localStorage.setItem('asana_token', data.token);
+                }
+            } catch (error) { console.error(error); }
+        }
+
+        function acessoGerencia() {
+            if (prompt("SENHA DE GERÊNCIA?") === "fogo123") window.location.href = "gerencia.html";
+        }
+
+        function handleActionButton() {
+            const btn = document.getElementById('action-btn');
+            if (btn.classList.contains('hot')) {
+                launchFireballEffect();
+                executarQueima();
+            } else {
+                window.location.href = `https://app.asana.com/-/oauth_authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&state=boladefogo`;
             }
+        }
+
+        async function executarQueima() {
+            const token = localStorage.getItem('asana_token');
+            const apiPath = isApocalypse ? '/api/burn-apocalipse' : '/api/burn';
+
+            try {
+                const resp = await fetch(apiPath, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+                if (!resp.ok) {
+                    const errorData = await resp.json();
+                    alert("Erro da API: " + (errorData.message || "Falha ao reagendar"));
+                }
+            } catch (error) { alert("Erro de rede: " + error.message); }
+        }
+
+        function launchFireballEffect() {
+            const ball = document.getElementById('fireball-effect');
+            const btn = document.getElementById('action-btn');
+            btn.disabled = true;
+            btn.innerText = isApocalypse ? "EXTINGUINDO..." : "Lançando...";
+            ball.style.display = 'block';
+            let scale = 1, opacity = 0.8;
+            const anim = setInterval(() => {
+                if (scale > 15 || opacity < 0.1) {
+                    clearInterval(anim);
+                    ball.style.display = 'none';
+                    btn.innerText = "Sucesso! 🔥";
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    scale += 0.5; opacity -= 0.02;
+                    ball.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                    ball.style.opacity = opacity;
+                }
+            }, 15);
         }
     </script>
 </body>
