@@ -4,12 +4,12 @@ export default async function handler(req, res) {
 
     try {
         const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-        const meResp = await fetch('https://app.asana.com/api/1.0/users/me', { headers });
+        const meResp = await fetch('https://app.asana.com/api/1.0/users/me?opt_fields=workspaces', { headers });
         const meData = await meResp.json();
 
-        if (!meData.data) throw new Error("Erro de autenticação no Asana.");
+        const workspaces = meData.data?.workspaces || meData.workspaces;
+        if (!workspaces) throw new Error("Erro de autenticação no Asana.");
 
-        // Lógica 5 dias úteis
         let data = new Date();
         let adicionados = 0;
         while (adicionados < 5) {
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         const hoje = new Date().toISOString().split('T')[0];
         let total = 0;
 
-        for (const ws of meData.data.workspaces) {
+        for (const ws of workspaces) {
             const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&opt_fields=due_on,completed`, { headers });
             const tasksJson = await tasksResp.json();
             const tarefas = tasksJson.data || [];
