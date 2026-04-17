@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+    // 1. Configurações de segurança e métodos
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -6,16 +7,21 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
+    // 2. TRATAMENTO DO BODY
     let body = {};
     try {
-        body = (typeof req.body === 'string') ? JSON.parse(req.body) : req.body;
+        if (typeof req.body === 'string') {
+            body = JSON.parse(req.body);
+        } else {
+            body = req.body;
+        }
     } catch (e) {
-        return res.status(400).json({ error: 'Erro ao processar dados.' });
+        return res.status(400).json({ error: 'Erro ao processar dados enviados.' });
     }
 
     const { token, code } = body;
 
-    // LOGIN (Mantendo seu Secret atualizado)
+    // --- PARTE 1: LOGIN (Troca de code por token) ---
     if (code) {
         try {
             const params = new URLSearchParams();
@@ -25,48 +31,62 @@ export default async function handler(req, res) {
             params.append('redirect_uri', req.headers.origin + '/');
             params.append('code', code);
 
-            const tokenResp = await fetch('https://app.asana.com/-/oauth_token', { method: 'POST', body: params });
+            const tokenResp = await fetch('https://app.asana.com/-/oauth_token', {
+                method: 'POST',
+                body: params
+            });
             const tokenData = await tokenResp.json();
-            if (tokenData.access_token) return res.status(200).json({ token: tokenData.access_token });
-            return res.status(400).json({ error: 'Erro no login', details: tokenData });
-        } catch (e) { return res.status(500).json({ error: 'Erro na autenticação' }); }
+            
+            if (tokenData.access_token) {
+                return res.status(200).json({ token: tokenData.access_token });
+            } else {
+                return res.status(400).json({ error: 'Asana negou o acesso', details: tokenData });
+            }
+        } catch (e) {
+            return res.status(500).json({ error: 'Erro na autenticação' });
+        }
     }
 
-    if (!token) return res.status(400).json({ error: 'Sem token.' });
+    // --- PARTE 2: LANÇAR BOLA DE FOGO (O Pente Fino Absoluto) ---
+    if (!token) {
+        return res.status(400).json({ error: 'Token não encontrado.' });
+    }
 
     try {
-        const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+        const headers = { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        };
+
+        // Identifica o usuário e seus workspaces
         const meResp = await fetch('https://app.asana.com/api/1.0/users/me?opt_fields=workspaces', { headers });
         const meData = await meResp.json();
-        const workspaces = meData.data?.workspaces || meData.workspaces;
 
+        const workspaces = meData.data?.workspaces || meData.workspaces;
+        if (!workspaces) return res.status(401).json({ error: 'Não foi possível carregar workspaces.' });
+
+        // Lógica de Data (Hoje e Próximo Dia Útil)
         let d = new Date();
         let pular = (d.getDay() === 5) ? 3 : (d.getDay() === 6 ? 2 : 1);
         d.setDate(d.getDate() + pular);
+        
         const novaData = d.toISOString().split('T')[0];
         const hoje = new Date().toISOString().split('T')[0];
         
         let totalReal = 0;
 
         for (const ws of workspaces) {
-            let offset = null;
             let temMais = true;
+            // Usando o Search API para buscar TUDO do usuário no workspace que vença HOJE
+            let nextUrl = `https://app.asana.com/api/1.0/workspaces/${ws.gid}/tasks/search?assignee.any=me&completed=false&due_on=${hoje}&limit=100&opt_fields=due_on,completed`;
 
-            // --- INÍCIO DO LOOP DE PAGINAÇÃO ---
             while (temMais) {
-                // Buscamos TUDO atribuído a você no Workspace
-                let url = `https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&limit=100&opt_fields=due_on,completed`;
-                if (offset) url += `&offset=${offset}`;
-
-                const tasksResp = await fetch(url, { headers });
+                const tasksResp = await fetch(nextUrl, { headers });
                 const tasksJson = await tasksResp.json();
-                
                 const tarefas = tasksJson.data || [];
-                
-                // Filtra e atualiza as que são para HOJE
-                const tarefasParaMudar = tarefas.filter(t => !t.completed && t.due_on === hoje);
-                
-                const updates = tarefasParaMudar.map(t => 
+
+                // Reagenda cada tarefa encontrada
+                const updates = tarefas.map(t => 
                     fetch(`https://app.asana.com/api/1.0/tasks/${t.gid}`, {
                         method: 'PUT',
                         headers,
@@ -76,9 +96,9 @@ export default async function handler(req, res) {
 
                 await Promise.all(updates);
 
-                // Verifica se o Asana tem mais tarefas (Paginação)
+                // Paginação: Se houver mais de 100 tarefas, ele continua buscando
                 if (tasksJson.next_page) {
-                    offset = tasksJson.next_page.offset;
+                    nextUrl = tasksJson.next_page.uri;
                 } else {
                     temMais = false;
                 }
