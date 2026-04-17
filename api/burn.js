@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
-    // 2. TRATAMENTO DO BODY (Onde estava dando o erro 400)
+    // 2. TRATAMENTO DO BODY
     let body = {};
     try {
         if (typeof req.body === 'string') {
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
             const params = new URLSearchParams();
             params.append('grant_type', 'authorization_code');
             params.append('client_id', '1213884306145874');
-            params.append('client_secret', 'b0fd2eccfce817b3bf8389b3cda05cca'); // Seu Secret
+            params.append('client_secret', 'b0fd2eccfce817b3bf8389b3cda05cca'); // SEU SECRET ATUALIZADO
             params.append('redirect_uri', req.headers.origin + '/');
             params.append('code', code);
 
@@ -58,14 +58,12 @@ export default async function handler(req, res) {
             'Content-Type': 'application/json' 
         };
 
-        // Pega o usuário e força a vinda dos workspaces
         const meResp = await fetch('https://app.asana.com/api/1.0/users/me?opt_fields=workspaces', { headers });
         const meData = await meResp.json();
 
         const workspaces = meData.data?.workspaces || meData.workspaces;
         if (!workspaces) return res.status(401).json({ error: 'Não foi possível carregar seus workspaces.' });
 
-        // Lógica de 1 dia útil (Pula FDS)
         let d = new Date();
         let pular = (d.getDay() === 5) ? 3 : (d.getDay() === 6 ? 2 : 1);
         d.setDate(d.getDate() + pular);
@@ -75,7 +73,8 @@ export default async function handler(req, res) {
         let total = 0;
 
         for (const ws of workspaces) {
-            const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&opt_fields=due_on,completed`, { headers });
+            // AQUI ESTÁ A MUDANÇA: limit=300 para pegar TUDO
+            const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&limit=300&opt_fields=due_on,completed`, { headers });
             const tasksJson = await tasksResp.json();
             const tarefas = tasksJson.data || [];
 
