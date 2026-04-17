@@ -5,15 +5,13 @@ export default async function handler(req, res) {
     try {
         const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
         
-        // 1. Pega os Workspaces com segurança
-        const meResp = await fetch('https://app.asana.com/api/1.0/users/me', { headers });
+        // Buscando explicitamente os workspaces
+        const meResp = await fetch('https://app.asana.com/api/1.0/users/me?opt_fields=workspaces', { headers });
         const meData = await meResp.json();
 
-        if (!meData.data || !meData.data.workspaces) {
-            throw new Error("Não foi possível carregar seus Workspaces. Tente logar novamente.");
-        }
+        const workspaces = meData.data?.workspaces || meData.workspaces;
+        if (!workspaces) throw new Error("Workspaces não encontrados.");
 
-        // 2. Lógica de 1 dia útil (Pula FDS)
         let d = new Date();
         let pular = (d.getDay() === 5) ? 3 : (d.getDay() === 6 ? 2 : 1);
         d.setDate(d.getDate() + pular);
@@ -22,8 +20,7 @@ export default async function handler(req, res) {
         const hoje = new Date().toISOString().split('T')[0];
         let total = 0;
 
-        // 3. Varre seus workspaces para limpar sua pauta ('me')
-        for (const ws of meData.data.workspaces) {
+        for (const ws of workspaces) {
             const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&opt_fields=due_on,completed`, { headers });
             const tasksJson = await tasksResp.json();
             const tarefas = tasksJson.data || [];
