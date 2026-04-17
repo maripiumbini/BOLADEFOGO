@@ -3,18 +3,20 @@ export default async function handler(req, res) {
     if (!authHeader) return res.status(401).json({ error: "Sem autorização" });
 
     try {
-        // 1. Descobre todos os seus Workspaces/Empresas
-        const meResp = await fetch('https://app.asana.com/api/1.0/users/me', {
+        // Pede explicitamente os workspaces
+        const meResp = await fetch('https://app.asana.com/api/1.0/users/me?opt_fields=workspaces', {
             headers: { 'Authorization': authHeader }
         });
         const meData = await meResp.json();
-        const workspaces = meData.data.workspaces;
+        
+        // Proteção contra o formato de dados do Asana
+        const workspaces = meData.data?.workspaces || meData.workspaces;
+
+        if (!workspaces) return res.status(404).json({ error: "Workspaces não encontrados" });
 
         let listaGeral = [];
 
-        // 2. Varre cada empresa atrás da galera
         for (const ws of workspaces) {
-            // Pedimos o campo 'photo' de forma completa
             const usersResp = await fetch(`https://app.asana.com/api/1.0/users?workspace=${ws.gid}&opt_fields=name,photo,email`, {
                 headers: { 'Authorization': authHeader }
             });
@@ -25,7 +27,7 @@ export default async function handler(req, res) {
             }
         }
 
-        // 3. Limpa duplicados e organiza
+        // Remove duplicados (caso a pessoa esteja em dois workspaces)
         const equipeUnica = listaGeral.filter((v, i, a) => a.findIndex(t => t.gid === v.gid) === i);
 
         return res.status(200).json(equipeUnica);
