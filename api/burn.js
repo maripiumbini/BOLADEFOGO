@@ -1,26 +1,98 @@
-# Vercel Runtime Log
+export default async function handler(req, res) {
+    // 1. Configurações de segurança e métodos
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-## Request
-ID: 6dh2s-1776435747409-e4ccbc921dfc
-Time: 2026-04-17T14:22:27.409Z
-POST /api/burn → 400
-Host: boladefogo-zeta.vercel.app
-Duration: 126ms
-Cache: MISS
-Region: gru1
-User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Referer: https://boladefogo-zeta.vercel.app/
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
-## Lifecycle
+    // 2. TRATAMENTO DO BODY (Onde estava dando o erro 400)
+    let body = {};
+    try {
+        if (typeof req.body === 'string') {
+            body = JSON.parse(req.body);
+        } else {
+            body = req.body;
+        }
+    } catch (e) {
+        return res.status(400).json({ error: 'Erro ao processar dados enviados.' });
+    }
 
-### Function
-Status: 400
-Duration: 7ms
-Runtime: nodejs24.x
-Memory: 239MB / 2048MB
-Region: iad1
+    const { token, code } = body;
 
-## Deployment
-ID: dpl_GveQYkceRsagftURr72RucPWc27G
-Environment: production
-Branch: main
+    // --- PARTE 1: TROCA DE CODE POR TOKEN (Login) ---
+    if (code) {
+        try {
+            const params = new URLSearchParams();
+            params.append('grant_type', 'authorization_code');
+            params.append('client_id', '1213884306145874');
+            params.append('client_secret', 'b0fd2eccfce817b3bf8389b3cda05cca'); // Seu Secret
+            params.append('redirect_uri', req.headers.origin + '/');
+            params.append('code', code);
+
+            const tokenResp = await fetch('https://app.asana.com/-/oauth_token', {
+                method: 'POST',
+                body: params
+            });
+            const tokenData = await tokenResp.json();
+            
+            if (tokenData.access_token) {
+                return res.status(200).json({ token: tokenData.access_token });
+            } else {
+                return res.status(400).json({ error: 'Asana negou o acesso', details: tokenData });
+            }
+        } catch (e) {
+            return res.status(500).json({ error: 'Erro na autenticação' });
+        }
+    }
+
+    // --- PARTE 2: LANÇAR BOLA DE FOGO (Limpar Tarefas) ---
+    if (!token) {
+        return res.status(400).json({ error: 'Token não encontrado. Tente conectar novamente.' });
+    }
+
+    try {
+        const headers = { 
+            'Authorization': `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+        };
+
+        // Pega o usuário e força a vinda dos workspaces
+        const meResp = await fetch('https://app.asana.com/api/1.0/users/me?opt_fields=workspaces', { headers });
+        const meData = await meResp.json();
+
+        const workspaces = meData.data?.workspaces || meData.workspaces;
+        if (!workspaces) return res.status(401).json({ error: 'Não foi possível carregar seus workspaces.' });
+
+        // Lógica de 1 dia útil (Pula FDS)
+        let d = new Date();
+        let pular = (d.getDay() === 5) ? 3 : (d.getDay() === 6 ? 2 : 1);
+        d.setDate(d.getDate() + pular);
+        
+        const novaData = d.toISOString().split('T')[0];
+        const hoje = new Date().toISOString().split('T')[0];
+        let total = 0;
+
+        for (const ws of workspaces) {
+            const tasksResp = await fetch(`https://app.asana.com/api/1.0/tasks?assignee=me&workspace=${ws.gid}&completed_since=now&opt_fields=due_on,completed`, { headers });
+            const tasksJson = await tasksResp.json();
+            const tarefas = tasksJson.data || [];
+
+            const updates = tarefas
+                .filter(t => !t.completed && t.due_on === hoje)
+                .map(t => fetch(`https://app.asana.com/api/1.0/tasks/${t.gid}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({ data: { due_on: novaData } })
+                }).then(r => { if(r.ok) total++; }));
+            
+            await Promise.all(updates);
+        }
+
+        return res.status(200).json({ success: true, reagendadas: total });
+
+    } catch (error) {
+        return res.status(500).json({ error: 'Erro interno', message: error.message });
+    }
+}
